@@ -58,7 +58,12 @@ jobs:
           foreach ($v in 'pythonLocation','Python_ROOT_DIR','Python2_ROOT_DIR','Python3_ROOT_DIR','PYTHONHOME','PYTHONPATH','CONDA') {
             Remove-Item "Env:$v" -ErrorAction SilentlyContinue
           }
-          if (Get-Command python -ErrorAction SilentlyContinue) { throw "python is still on PATH" }
+          while ($c = Get-Command python, python3 -ErrorAction SilentlyContinue | Select-Object -First 1) {
+            $dir = Split-Path $c.Source
+            Write-Host "removing from PATH: $dir (had $($c.Name))"
+            if ($dir -match '^C:\\Windows(\\System32)?$') { throw "python lives in $dir" }
+            $env:PATH = ($env:PATH -split ';' | Where-Object { $_.TrimEnd('\') -ne $dir.TrimEnd('\') }) -join ';'
+          }
           if (Get-Command py -ErrorAction SilentlyContinue) { Write-Host "note: py launcher present at $((Get-Command py).Source)" }
           Write-Host "python on PATH: none"
           Write-Host ("OS: " + (Get-CimInstance Win32_OperatingSystem).Caption)
