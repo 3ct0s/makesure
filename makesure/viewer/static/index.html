@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MakeSure</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <script type="module" src="/static/viewer.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>MakeSure</h1>
+      <span class="tag">view only</span>
+      <button id="logout" type="button" hidden>Log out</button>
+    </header>
+    <main>
+      <section id="login-view" hidden>
+        <form id="login-form">
+          <label for="password">Operator password</label>
+          <input id="password" type="password" autocomplete="current-password" required />
+          <button type="submit">Log in</button>
+          <p id="login-error" class="error" role="alert"></p>
+        </form>
+      </section>
+
+      <section id="app-view" hidden>
+        <div id="devices-panel">
+          <h2>Devices</h2>
+          <table id="devices">
+            <thead>
+              <tr><th>Status</th><th>Name</th><th>Device ID</th><th>Viewers</th><th></th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+          <p id="devices-empty" hidden>
+            No devices enrolled yet. Create a token with
+            <code>python -m makesure.relay enroll --name "Lobby kiosk"</code>.
+          </p>
+        </div>
+
+        <div id="view-panel" hidden>
+          <div class="view-bar">
+            <strong id="view-name"></strong>
+            <span id="view-id" class="mono"></span>
+            <span id="conn-status" class="status"></span>
+            <button id="disconnect" type="button">Disconnect</button>
+          </div>
+          <div class="stats">
+            <span>FPS <b id="stat-fps">-</b></span>
+            <span>Resolution <b id="stat-res">-</b></span>
+            <span>Latency <b id="stat-lat">-</b></span>
+            <span>Bitrate <b id="stat-kbps">-</b></span>
+          </div>
+          <div class="screen"><canvas id="screen" width="1280" height="720"></canvas></div>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

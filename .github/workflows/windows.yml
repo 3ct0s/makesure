@@ -1,0 +1,125 @@
+name: windows
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      e2e_minutes:
+        description: "Run the built exe against the relay in secrets for this many minutes (0 = build only)"
+        default: "0"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Unit tests on Windows
+        shell: pwsh
+        env:
+          MAKESURE_TEST_HEADLESS_INDICATOR: "1"
+        run: |
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+          python -m pytest -q
+      - name: Build exe
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File packaging\build_windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MakeSureAgent
+          path: |
+            dist/MakeSureAgent.exe
+            config/agent.example.yaml
+
+  e2e:
+    needs: build
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.e2e_minutes != '0' }}
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      # No checkout and no setup-python: this job only ever sees the exe.
+      - uses: actions/download-artifact@v4
+        with:
+          name: MakeSureAgent
+          path: C:\ms
+      - name: Run exe with Python hidden
+        shell: pwsh
+        env:
+          MS_RELAY_URL: ${{ secrets.MS_RELAY_URL }}
+          MS_ENROLL_TOKEN: ${{ secrets.MS_ENROLL_TOKEN }}
+          MINUTES: ${{ inputs.e2e_minutes }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          # Hide every Python on the runner so the exe can only use what it bundles.
+          $env:PATH = ($env:PATH -split ';' | Where-Object { $_ -and ($_ -notmatch 'python|hostedtoolcache|conda|pypy') }) -join ';'
+          foreach ($v in 'pythonLocation','Python_ROOT_DIR','Python2_ROOT_DIR','Python3_ROOT_DIR','PYTHONHOME','PYTHONPATH','CONDA') {
+            Remove-Item "Env:$v" -ErrorAction SilentlyContinue
+          }
+          if (Get-Command python -ErrorAction SilentlyContinue) { throw "python is still on PATH" }
+          if (Get-Command py -ErrorAction SilentlyContinue) { Write-Host "note: py launcher present at $((Get-Command py).Source)" }
+          Write-Host "python on PATH: none"
+          Write-Host ("OS: " + (Get-CimInstance Win32_OperatingSystem).Caption)
+
+          $exe = "C:\ms\dist\MakeSureAgent.exe"
+          if (-not (Test-Path $exe)) { $exe = (Get-ChildItem C:\ms -Recurse -Filter MakeSureAgent.exe | Select-Object -First 1).FullName }
+          Write-Host "exe: $exe ($([math]::Round((Get-Item $exe).Length / 1MB, 1)) MB)"
+          $data = "C:\ms\data"
+
+          # Something that moves on screen, so the video is not a still image.
+          $clock = Start-Process powershell -PassThru -ArgumentList '-NoExit','-Command','while ($true) { Clear-Host; Get-Date -Format "HH:mm:ss.fff"; Get-Random; Start-Sleep -Milliseconds 100 }'
+
+          function Start-Agent([bool]$enroll) {
+            $a = @('--relay-url', $env:MS_RELAY_URL, '--data-dir', $data)
+            if ($enroll) { $a += @('--enroll', $env:MS_ENROLL_TOKEN) }
+            Start-Process $exe -ArgumentList $a | Out-Null
+          }
+          function Agent-Stats {
+            $p = Get-Process MakeSureAgent -ErrorAction SilentlyContinue
+            if (-not $p) { return "agent not running" }
+            $ws = [math]::Round((($p | Measure-Object WorkingSet64 -Sum).Sum) / 1MB, 1)
+            $pm = [math]::Round((($p | Measure-Object PrivateMemorySize64 -Sum).Sum) / 1MB, 1)
+            $cpu = [math]::Round((($p | Measure-Object CPU -Sum).Sum), 1)
+            return "procs=$($p.Count) working_set_mb=$ws private_mb=$pm cpu_s=$cpu"
+          }
+
+          Start-Agent $true
+          $total = [int]$env:MINUTES * 60
+          $start = Get-Date
+          $blocked = $false; $unblocked = $false; $restarted = $false
+          while ($true) {
+            $t = [int]((Get-Date) - $start).TotalSeconds
+            if ($t -ge $total) { break }
+            Write-Host ("t={0,4}s {1} {2}" -f $t, (Get-Date -Format "HH:mm:ss"), (Agent-Stats))
+            if (-not $blocked -and $t -ge 120) {
+              Write-Host "== network interruption: blocking the agent's outbound traffic for 25 s"
+              New-NetFirewallRule -DisplayName "ms-test-block" -Direction Outbound -Program $exe -Action Block | Out-Null
+              $blocked = $true
+            }
+            if ($blocked -and -not $unblocked -and $t -ge 145) {
+              Remove-NetFirewallRule -DisplayName "ms-test-block"
+              Write-Host "== network restored"
+              $unblocked = $true
+            }
+            if (-not $restarted -and $t -ge 210) {
+              Write-Host "== killing the exe and starting it again without an enrollment token"
+              Get-Process MakeSureAgent | Stop-Process -Force
+              Start-Sleep 3
+              Start-Agent $false
+              $restarted = $true
+            }
+            Start-Sleep 10
+          }
+          Write-Host ("final: " + (Agent-Stats))
+          Get-Process MakeSureAgent -ErrorAction SilentlyContinue | Stop-Process -Force
+          Stop-Process -Id $clock.Id -Force -ErrorAction SilentlyContinue
+          Write-Host "== agent log"
+          Get-ChildItem $data -Recurse -Filter *.log* | ForEach-Object { Get-Content $_.FullName }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: agent-logs
+          path: C:\ms\data\**\*.log*
+          if-no-files-found: ignore

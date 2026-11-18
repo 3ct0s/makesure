@@ -1,0 +1,38 @@
+# MakeSure relay configuration. Run with:
+#   python -m makesure.relay run --config relay.yaml
+
+# Listen only on this machine; the tunnel reaches the relay locally.
+host: 127.0.0.1
+port: 8080
+
+# Empty = default (%LOCALAPPDATA%\MakeSureRelay on Windows, ~/.makesure-relay elsewhere).
+data_dir: ""
+
+log_level: INFO
+
+# Operator login session lifetime.
+session_hours: 12
+
+# Trust X-Forwarded-* headers from a tunnel connecting from 127.0.0.1.
+trust_forwarded_headers: true
+
+# Extra origins allowed to open viewer sockets (normally not needed).
+allowed_origins: []
+
+# Frames queued per viewer before older frames are dropped up to the next keyframe.
+viewer_queue_frames: 5
+
+login:
+  max_failures: 5
+  window_s: 900
+  lockout_s: 900
+
+tunnel:
+  # cloudflare_quick | ngrok | none
+  provider: cloudflare_quick
+  cloudflared_path: cloudflared
+  ngrok_path: ngrok
+  # Reserved ngrok domain, e.g. my-relay.ngrok.app (authtoken: ngrok config or NGROK_AUTHTOKEN).
+  ngrok_domain: ""
+  # provider none: the public https URL you expose yourself (optional).
+  public_url: ""

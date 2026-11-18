@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "makesure"
+version = "0.1.0"
+description = "Consent-visible, view-only screen streaming for unattended Windows machines"
+requires-python = ">=3.11"
+dependencies = [
+    "av>=14",
+    "cryptography>=42",
+    "fastapi>=0.110",
+    "mss>=10.1",
+    "numpy>=1.26",
+    "PyYAML>=6",
+    "uvicorn[standard]>=0.35",
+    "websockets>=14",
+]
+
+[project.optional-dependencies]
+dev = ["httpx", "pytest", "pytest-asyncio"]
+
+[project.scripts]
+makesure-relay = "makesure.relay.cli:main"
+makesure-agent = "makesure.agent.main:main"
+
+[tool.setuptools.packages.find]
+include = ["makesure*"]
+
+[tool.setuptools.package-data]
+"makesure.viewer" = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["packaging/agent.spec"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+exclude = ["tests/", "packaging/"]

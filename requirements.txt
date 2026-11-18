@@ -1,0 +1,9 @@
+# Runtime dependencies (agent and relay). Pinned for reproducible Windows builds.
+av==19.0.2
+cryptography==50.0.2
+fastapi==0.163.2
+mss==10.2.0
+numpy==2.5.5
+PyYAML==6.0.3
+uvicorn[standard]==0.54.0
+websockets==17.4

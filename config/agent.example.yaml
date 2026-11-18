@@ -1,0 +1,35 @@
+# MakeSure agent configuration. Copy to agent.yaml next to MakeSureAgent.exe
+# (or into %LOCALAPPDATA%\MakeSure\agent.yaml). Command line flags override it.
+
+# The relay's agent endpoint. Must be wss:// unless the relay runs on this machine.
+relay_url: wss://example.trycloudflare.com/ws/agent
+
+# One-time token from `python -m makesure.relay enroll --name "..."`.
+# The agent deletes this line after it has enrolled successfully.
+enroll_token: ""
+
+# Monitor to capture: 1 = primary.
+monitor: 1
+
+# h264 (default, decoded with WebCodecs) or jpeg (fallback, more bandwidth).
+codec: h264
+
+# Largest stream size. The screen is scaled down to fit, keeping its aspect ratio.
+width: 1280
+height: 720
+fps: 15
+
+# Starting bitrate and the range adaptive quality may use, in kbps.
+bitrate_kbps: 1500
+min_bitrate_kbps: 300
+max_bitrate_kbps: 4000
+
+keyframe_interval_s: 2.0
+
+# ultrafast uses the least CPU; veryfast gives better quality per bit.
+x264_preset: ultrafast
+
+# Longest wait between reconnect attempts, in seconds.
+reconnect_max_s: 30
+
+log_level: INFO
