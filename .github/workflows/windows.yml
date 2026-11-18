@@ -8,6 +8,9 @@ on:
       e2e_minutes:
         description: "Run the built exe against the relay in secrets for this many minutes (0 = build only)"
         default: "0"
+      interruptions:
+        description: "Also block the network for 25 s and restart the exe during the run"
+        default: "true"
 
 jobs:
   build:
@@ -51,6 +54,7 @@ jobs:
           MS_RELAY_URL: ${{ secrets.MS_RELAY_URL }}
           MS_ENROLL_TOKEN: ${{ secrets.MS_ENROLL_TOKEN }}
           MINUTES: ${{ inputs.e2e_minutes }}
+          INTERRUPT: ${{ inputs.interruptions }}
         run: |
           $ErrorActionPreference = "Stop"
           # Hide every Python on the runner so the exe can only use what it bundles.
@@ -93,7 +97,8 @@ jobs:
           Start-Agent $true
           $total = [int]$env:MINUTES * 60
           $start = Get-Date
-          $blocked = $false; $unblocked = $false; $restarted = $false
+          $skip = ($env:INTERRUPT -ne 'true')
+          $blocked = $skip; $unblocked = $skip; $restarted = $skip
           while ($true) {
             $t = [int]((Get-Date) - $start).TotalSeconds
             if ($t -ge $total) { break }
