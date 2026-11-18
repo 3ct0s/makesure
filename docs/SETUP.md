@@ -3,6 +3,14 @@
 This guide takes you from nothing to a running relay and one enrolled Windows machine.
 For day-to-day use after that, see the [user guide](USAGE.md).
 
+What runs where:
+
+| Part | macOS | Linux (Ubuntu) | Windows |
+|---|---|---|---|
+| Relay and tunnel (operator side) | Yes, tested | Yes, steps below, not yet run | Yes, steps below, tests pass |
+| Viewer | Any current browser | Any current browser | Any current browser |
+| Agent (the machine being viewed) | From source, for trials | Not supported | Yes, as `MakeSureAgent.exe` |
+
 There are two machines:
 
 - **Operator machine**: runs the relay and the tunnel. macOS, Linux or Windows. Needs Python 3.12.
@@ -36,9 +44,43 @@ Check both tools with `uv --version` and `cloudflared --version`.
 The rest of Part 1 is the same on Linux. To keep the relay running after you log out or reboot,
 see "Run the relay as a service on Linux" below.
 
-On Windows, install [uv](https://docs.astral.sh/uv/) and
-[cloudflared](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/)
-from their own sites. No Cloudflare account is needed for the default tunnel.
+Windows 10 or 11, in PowerShell:
+
+```powershell
+winget install --id Git.Git -e
+winget install --id astral-sh.uv -e
+winget install --id Cloudflare.cloudflared -e
+```
+
+Close PowerShell and open it again so the new commands are found, then check them with
+`uv --version` and `cloudflared --version`. As on the other systems, `uv` downloads Python 3.12 for you.
+
+On Windows the commands in the rest of this guide change in two small ways:
+
+| In this guide | On Windows |
+|---|---|
+| `.venv/bin/python` | `.venv\Scripts\python` |
+| `cp config/relay.example.yaml relay.yaml` | `copy config\relay.example.yaml relay.yaml` |
+
+So Part 1 on Windows is, in full:
+
+```powershell
+git clone https://github.com/3ct0s/makesure.git
+cd makesure
+uv venv --python 3.12 .venv
+uv pip install -r requirements.txt
+copy config\relay.example.yaml relay.yaml
+.venv\Scripts\python -m makesure.relay set-password --config relay.yaml
+.venv\Scripts\python -m makesure.relay run --config relay.yaml
+```
+
+The first time the relay starts, Windows may ask whether Python may use the network. Allow it for private networks;
+the relay only listens on this machine and reaches the internet through `cloudflared`.
+
+The relay's test suite passes on Windows, but the relay together with its tunnel has only been run on macOS so far,
+so treat the first Windows run as a test.
+
+No Cloudflare account is needed for the default tunnel on any system.
 
 ### 1.2 Get the code and install it
 
