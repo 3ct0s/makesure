@@ -7,6 +7,8 @@ no files, no clipboard, no recording.
 The remote machine only makes outbound HTTPS connections, so it works behind NAT and firewalls
 with no port forwarding.
 
+Guides: [setup](docs/SETUP.md), [daily use](docs/USAGE.md), [test results](docs/TEST_RESULTS.md).
+
 ## How it fits together
 
 ```
