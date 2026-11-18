@@ -18,7 +18,25 @@ macOS:
 brew install uv cloudflared
 ```
 
-On Linux or Windows, install [uv](https://docs.astral.sh/uv/) and
+Ubuntu and other Debian-based Linux (64-bit Intel/AMD):
+
+```bash
+sudo apt update
+sudo apt install -y git curl
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.local/bin/env
+curl -L -o cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+```
+
+On an ARM machine (for example a Raspberry Pi with a 64-bit system) use `cloudflared-linux-arm64.deb` instead.
+You do not need to install Python yourself: `uv venv --python 3.12` in the next step downloads it.
+Check both tools with `uv --version` and `cloudflared --version`.
+
+The rest of Part 1 is the same on Linux. To keep the relay running after you log out or reboot,
+see "Run the relay as a service on Linux" below.
+
+On Windows, install [uv](https://docs.astral.sh/uv/) and
 [cloudflared](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/downloads/)
 from their own sites. No Cloudflare account is needed for the default tunnel.
 
@@ -149,6 +167,49 @@ tunnel:
 ```
 
 Agents use `relay_url: wss://view.yourdomain.com/ws/agent`.
+
+## Run the relay as a service on Linux
+
+This keeps the relay (and its tunnel) running in the background and restarts it after a crash or reboot.
+The example assumes the code is in `/home/youruser/makesure` and that `relay.yaml` is there too. Adjust the user name and paths.
+
+Create `/etc/systemd/system/makesure-relay.service`:
+
+```ini
+[Unit]
+Description=MakeSure relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=youruser
+WorkingDirectory=/home/youruser/makesure
+ExecStart=/home/youruser/makesure/.venv/bin/python -m makesure.relay run --config relay.yaml
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now makesure-relay
+journalctl -u makesure-relay -f
+```
+
+The last command shows the log, including the public viewer URL. Stop the service with
+`sudo systemctl stop makesure-relay`; systemd also stops the tunnel process it started.
+
+With the quick tunnel, every service restart gives a new address, so on a server a fixed address
+(previous section) is strongly recommended.
+
+The relay has been tested on macOS, and its test suite also passes on Windows. It has not been run on Linux yet;
+it uses nothing platform-specific, but treat the first Linux run as a test.
+
+The agent is for Windows. Running it on a Linux desktop is not supported.
 
 ## Trying the agent on a Mac
 
